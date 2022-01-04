@@ -7,9 +7,17 @@
  */
 import React from 'react';
 import { StyleSheet, Text, View, Image, TextInput,TouchableOpacity, ScrollView, ImageBackground} from 'react-native';
+import Setting from './Setting.js';
 
 export default class App extends React.Component {
-
+  constructor(props) {
+      super(props);
+      this.state = {
+          dday: new Date(),
+          ddayTitle: '테스트 디데이',
+          chatLog: [],
+      }
+    }
   render() {
     return (
       <View style={styles.container}>
@@ -23,7 +31,7 @@ export default class App extends React.Component {
         </View>
         <View style={styles.ddayView}>
           <Text style={styles.titleText}>
-            수능까지
+            {this.state.ddayTitle}까지
           </Text>
           <Text style={styles.ddayText}>
             D-123
@@ -44,6 +52,7 @@ export default class App extends React.Component {
             </TouchableOpacity>
           </View>
         </View>
+            <Setting/>
         </ImageBackground>
       </View>
     );
