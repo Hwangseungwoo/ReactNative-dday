@@ -7,6 +7,7 @@
  */
 import React from 'react';
 import { StyleSheet, Text, View, Image, TextInput,TouchableOpacity, ScrollView, ImageBackground} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Setting from './Setting.js';
 
 export default class App extends React.Component {
@@ -15,9 +16,94 @@ export default class App extends React.Component {
       this.state = {
           dday: new Date(),
           ddayTitle: '테스트 디데이',
+          chatInput: '',
           chatLog: [],
+          settingModal: false,
       }
     }
+  async UNSAFE_componentWillMount() {
+      try {
+        const ddayString = await AsyncStorage.getItem('@dday')
+        const chatLogString = await AsyncStorage.getItem('@chat');
+
+        if(chatLogString == null){
+          this.setState({chatLog: []});
+        } else {
+          const chatLog = JSON.parse(chatLogString);
+          this.setState({chatLog: chatLog});
+        }
+
+        if(ddayString == null){
+          this.setState(
+            {
+              dday: new Date(),
+              ddayTitle: '',
+            }
+          );
+        } else {
+          const dday = JSON.parse(ddayString);
+          this.setState(
+            {
+              dday: new Date(dday.date),
+              ddayTitle: dday.title,
+            }
+          );
+        }
+      } catch(e) {
+        console.log("ERR");
+      }
+  }
+  toggleSettingModal() {
+    this.setState({
+      settingModal: !this.state.settingModal
+    })
+  }
+  makeDateString() {
+    return this.state.dday.getFullYear() + '년 ' + (this.state.dday.getMonth()+1) + '월 ' + this.state.dday.getDate() + '일';
+  }
+
+  makeRemainString() {
+    const distance = new Date().getTime() - this.state.dday.getTime();
+    console.log(new Date(), this.state.dday,distance / (1000 * 60 * 60 * 24) )
+    const remain = Math.floor(distance / (1000 * 60 * 60 * 24));
+    if(remain < 0) {
+      return 'D'+remain;
+    } else if (remain > 0) {
+      return 'D+'+remain;
+    } else if (remain === 0) {
+      return 'D-day';
+    }
+  }
+  chatHandler() {
+    this.setState({
+      chatLog: [ ...this.state.chatLog, this.makeDateString() + ' : ' + this.state.chatInput],
+      chatInput: '',
+    },async ()=>{
+      const chatLogString = JSON.stringify(this.state.chatLog);
+      await AsyncStorage.setItem('@chat', chatLogString);
+    });
+  }
+
+  async settingHandler(title, date) {
+     this.setState({
+       ddayTitle: title,
+       dday: date,
+     });
+
+     //저장루틴 추가
+    try {
+      const dday = {
+        title: title,
+        date: date,
+      }
+      const ddayString = JSON.stringify(dday);
+      await AsyncStorage.setItem('@dday', ddayString);
+    } catch (e) {
+      console.log(e);
+    }
+     this.toggleSettingModal();
+   }
+
   render() {
     return (
       <View style={styles.container}>
@@ -25,7 +111,8 @@ export default class App extends React.Component {
                 style={{width: '100%', height: '100%'}}
                 source={require('./images/background.png')}>
         <View style={styles.settingView}>
-          <TouchableOpacity>
+
+          <TouchableOpacity onPress={()=>this.toggleSettingModal()}>
             <Image source={require('./icon/setting.png')}/>
           </TouchableOpacity>
         </View>
@@ -34,25 +121,41 @@ export default class App extends React.Component {
             {this.state.ddayTitle}까지
           </Text>
           <Text style={styles.ddayText}>
-            D-123
+            {this.makeRemainString()}
           </Text>
           <Text style={styles.dateText}>
-            2020년 11월 32일
+            {this.makeDateString()}
           </Text>
         </View>
 	    <View style={styles.chatView}>
           <ScrollView style={styles.chatScrollView}>
+            {this.state.chatLog.map((chat)=>{
+              return <Text style={styles.chat}>{chat}</Text>
+            })}
           </ScrollView>
           <View style={styles.chatControl}>
-            <TextInput style={styles.chatInput}/>
-            <TouchableOpacity style={styles.sendButton}>
+            <TextInput
+              style={styles.chatInput}
+              value={this.state.chatInput}
+              onChangeText={(changedText)=>{
+                this.setState({chatInput: changedText})}
+              }
+            />
+            <TouchableOpacity
+              style={styles.sendButton}
+              onPress={()=>this.chatHandler()}
+            >
               <Text>
                 전송
               </Text>
             </TouchableOpacity>
           </View>
         </View>
-            <Setting/>
+          {this.state.settingModal ?
+            <Setting
+              modalHandler={()=>this.toggleSettingModal()}
+              settingHandler={(title, date)=>this.settingHandler(title, date)}/>
+            : <></>}
         </ImageBackground>
       </View>
     );
@@ -62,6 +165,18 @@ export default class App extends React.Component {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  chat: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#4A4A4A',
+    margin: 2,
+  },
+  settingView: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    marginRight: '1%',
   },
   settingView: {
     flex: 1,
